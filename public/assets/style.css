@@ -1,0 +1,51 @@
+body {
+    padding: 1em;
+}
+
+.ui.hidden {
+    display: none !important;
+}
+
+#app-container {
+    margin: 0;
+    height: 100%;
+}
+
+#form-container {
+    background: #fff;
+    box-shadow: 0px -1px 0 0 #d4d4d5;
+}
+
+#user-list {
+    position: relative;
+}
+
+#user-list #alert-container {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    padding: 1em;
+    position: absolute;
+}
+
+#user-list .list {
+    height: 81vh;
+    overflow-x: hidden;
+}
+
+#chatbox {
+    flex-direction: column;
+    height: calc(100% + 2em);
+    justify-content: space-between;
+    background: url('/assets/bg.png') repeat left top / 15%;
+}
+
+#messages-list {
+    max-width: 100%;
+}
+
+#form-join .fields,
+#form-message .fields {
+    margin-bottom: 0;
+}
