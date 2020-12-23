@@ -1,71 +1,70 @@
-const express = require('express');
-const app = express();
-let randomColor = require('randomcolor');
+const _ = require('lodash');
 const uuid = require('uuid');
+const express = require('express');
+const socketIO = require("socket.io");
+const randomColor = require('randomcolor');
 
+const app = express();
 
 app.use(express.static('public'));
 
-//yönlendirme yapıyosun unutma aslı
-app.get('/', (req,res)=>{
-    res.sendFile(__dirname + '/public/index.html');
-});
+app.get('/', (req, res) => res.sendFile(`${__dirname}/public/index.html`));
 
-server = app.listen( process.env.PORT || 5000);
+const server = app.listen(process.env.PORT || 5000);
+const io = socketIO(server);
 
-const io = require("socket.io")(server);
+const getAvatar = (username, color) => {
+    return `https://ui-avatars.com/api/?name=${username}&background=${color.replace('#', '')}&color=fff`;
+};
 
 let users = [];
 let connnections = [];
 
-
-// client bağlandığında çalıştır aslı
 io.on('connection', (socket) => {
-    console.log('New user connected');
     connnections.push(socket)
 
-    let color = randomColor();
+    const id = uuid.v4();
+    const color = randomColor();
+    const username = `Anonymous ${_.uniqueId()}`;
+    const avatar = getAvatar(username, color);
+    const user = { id, username, color, avatar };
 
-    socket.username = 'Anonymous';
-    socket.color = color;
+    users.push(user);
+
+    socket.id = user.id;
+    socket.user = user;
+
+    io.sockets.emit('userlist_updated', users);
 
     socket.on('change_username', data => {
-        let id = uuid.v4();
-        socket.id = id;
-        socket.username = data.username;
-        users.push({id, username : socket.username ,color :socket.color});
-        updateUsernames();
+        const user = _.first(_.filter(users, {id: socket.id }));
+        user.username = data.username;
+        user.avatar = getAvatar(data.username, user.color);
 
-    })
-    const updateUsernames = () =>{
-        io.sockets.emit('get users',users)
-    }
+        socket.emit('joined', user);
+        socket.user = user;
 
-    socket.on('new_message' , (data) => {
-        io.sockets.emit('new_message' ,{message :data.message , username :socket.username,color: socket.color})
-    })
+        io.sockets.emit('userlist_updated', users);
+    });
 
-    socket.on('typing', data => {
-        socket.broadcast.emit('typing',{username: socket.username})
-    })
+    socket.on('new_message', (data) => {
+        io.sockets.emit('new_message', {
+            message: data.message,
+            user: socket.user,
+        });
+    });
 
-    
-    socket.on('disconnect', data => {
+    socket.on('typing', () => io.sockets.emit('typing', socket.user));
 
-        if(!socket.username)
+    socket.on('disconnect', () => {
+        if (!socket.user) {
             return;
-      
-        let user = undefined;
-        for(let i= 0;i<users.length;i++){
-            if(users[i].id === socket.id){
-                user = users[i];
-                break;
-            }
         }
-        users = users.filter( x => x !== user);
-       
-        updateUsernames();
-        connnections.splice(connnections.indexOf(socket),1);
-    })
 
-})
+        users = users.filter(user => user.id !== socket.user.id);
+
+        io.sockets.emit('userlist_updated', users);
+
+        connnections.splice(connnections.indexOf(socket), 1);
+    });
+});
